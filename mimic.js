@@ -22,6 +22,9 @@ detector.detectAllAppearance();
 // Unicode values for all emojis Affectiva can detect
 var emojis = [ 128528, 9786, 128515, 128524, 128527, 128521, 128535, 128539, 128540, 128542, 128545, 128563, 128561 ];
 
+// Reduced set of emojis
+var reducedEmojis = [ 128528, 9786, 128515, 128527, 128521, 128535, 128545, 128561 ];
+
 // Update target emoji being displayed by supplying a unicode value
 function setTargetEmoji(code) {
   $("#target").html("&#" + code + ";");
@@ -74,7 +77,7 @@ function onReset() {
   $("#logs").html("");  // clear out previous log
 
   // TODO(optional): You can restart the game as well
-  // <your code here>
+  startGame();
 };
 
 // Add a callback to notify when camera access is allowed
@@ -102,7 +105,7 @@ detector.addEventListener("onInitializeSuccess", function() {
   $("#face_video").css("display", "none");
 
   // TODO(optional): Call a function to initialize the game, if needed
-  // <your code here>
+  startGame();
 });
 
 // Add a callback to receive the results from processing an image
@@ -133,7 +136,11 @@ detector.addEventListener("onImageResultsSuccess", function(faces, image, timest
     drawEmoji(canvas, image, faces[0]);
 
     // TODO: Call your function to run the game (define it first!)
-    // <your code here>
+    if (compareWithFace(faces[0], target)) {
+      console.log("face: " + faces[0]);
+      incrementScore();
+      target = setRandomEmoji();
+    }
   }
 });
 
@@ -147,16 +154,21 @@ function drawFeaturePoints(canvas, img, face) {
 
   // TODO: Set the stroke and/or fill style you want for each feature point marker
   // See: https://developer.mozilla.org/en-US/docs/Web/API/CanvasRenderingContext2D#Fill_and_stroke_styles
-  // <your code here>
-  
-  // Loop over each feature point in the face
+  ctx.strokeStyle = 'rgba(255,255,255,0.9)';
+  ctx.lineWidth = 1;
+  ctx.font = '15px serif';
+
+  // Looping over each feature point in the face
   for (var id in face.featurePoints) {
     var featurePoint = face.featurePoints[id];
 
     // TODO: Draw feature point, e.g. as a circle using ctx.arc()
     // See: https://developer.mozilla.org/en-US/docs/Web/API/CanvasRenderingContext2D/arc
-    // <your code here>
+    ctx.beginPath();
+    ctx.arc(featurePoint.x, featurePoint.y, 2, 0, 2 * Math.PI);
+    ctx.stroke();
   }
+
 }
 
 // Draw the dominant emoji on the image
@@ -165,16 +177,24 @@ function drawEmoji(canvas, img, face) {
   var ctx = canvas.getContext('2d');
 
   // TODO: Set the font and style you want for the emoji
-  // <your code here>
-  
+  // Varying font size with face size
+  var dist = ((face.featurePoints[10].x-face.featurePoints[5].x)**2 + (face.featurePoints[10].y-face.featurePoints[5].y)**5) ** 0.5;
+  if (dist>130) {
+    ctx.font = '55px serif';
+  } else if (dist>100) {
+    ctx.font = '45px serif';
+  } else {
+    ctx.font = '35px serif';
+  }
+
   // TODO: Draw it using ctx.strokeText() or fillText()
   // See: https://developer.mozilla.org/en-US/docs/Web/API/CanvasRenderingContext2D/fillText
   // TIP: Pick a particular feature point as an anchor so that the emoji sticks to your face
-  // <your code here>
+  //dominant Emoji
+  ctx.fillText(face.emojis.dominantEmoji, face.featurePoints[10].x+30, face.featurePoints[10].y+20);
 }
 
 // TODO: Define any variables and functions to implement the Mimic Me! game mechanics
-
 // NOTE:
 // - Remember to call your update function from the "onImageResultsSuccess" event handler above
 // - You can use setTargetEmoji() and setScore() functions to update the respective elements
@@ -186,4 +206,55 @@ function drawEmoji(canvas, img, face) {
 // - Define an initialization/reset function, and call it from the "onInitializeSuccess" event handler above
 // - Define a game reset function (same as init?), and call it from the onReset() function above
 
-// <your code here>
+var score = 0;
+var total = 0;
+var target = null;
+
+function startGame() {
+  // Reset game variables
+  score = 0;
+  total = 0;
+  setScore(score, total);
+  target = setRandomEmoji();
+
+}
+
+function setRandomEmoji() {
+  var randIdx = Math.floor(Math.random() * (reducedEmojis.length-1));
+  var newEmoji = reducedEmojis[randIdx];
+  setTargetEmoji(newEmoji);
+  console.log("New Target: " + newEmoji);
+  incrementTotal();
+
+  // Start timer
+  setTimeout(function() {
+    if (target == newEmoji) {
+      console.log('Timeout!');
+      // If target remains the same, change to another emoji
+      console.log('This: ' + newEmoji + ' Target:' + target);
+      target = setRandomEmoji();
+    } else {
+      console.log('No Time Out!')
+    }
+  }, 10000);
+  return newEmoji;
+}
+
+// Draw the dominant emoji on the image
+function compareWithFace(face, target) {
+  detectedEmoji = face.emojis.dominantEmoji;
+  if (toUnicode(detectedEmoji) == target) {
+    return true;
+  }
+  return false;
+}
+
+function incrementScore() {
+  score++;
+  setScore(score, total);
+}
+
+function incrementTotal() {
+  total++;
+  setScore(score, total);
+}
